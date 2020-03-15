@@ -3,6 +3,8 @@
 import os
 import time
 
+from random import getrandbits, choice
+from base64 import urlsafe_b64encode
 from flask import Flask, \
 		render_template, url_for, flash, \
 		request, redirect, Response, abort, \
@@ -42,12 +44,14 @@ def receive_file():
         flash('Please choose a file')
         return redirect(request.url)
 
-    filename = secure_filename(f.filename)
-    # TODO: replace this with a custom filename based on random url compatible base64 chars
-    #       likely use urandom with ~12 bytes of entropy
-    #       or see if there is already some magical random stuff in the http request
+    filename = urlsafe_b64encode((getrandbits(config.path_length * 8)) \
+                        .to_bytes(config.path_length, 'little')).decode('utf-8') \
+                      + secure_filename(f.filename)
+
+    # TODO: Implement directory creation based on encoded file name
+
     try:
-        f.save(os.path.join(config.base_dir, f.filename))
+        f.save(os.path.join(config.base_dir, filename))
     except Exception as e:
         print("ERROR: unable to save file: {}".format(e,))
         return "Internal Server Error", 500
