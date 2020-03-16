@@ -1,7 +1,6 @@
 #!/bin/env python3
 
-import os
-import time
+import os, builtins, time
 
 from random import getrandbits, choice
 from base64 import urlsafe_b64encode
@@ -20,13 +19,27 @@ app.config['MAX_CONTENT_LENGTH'] = config.max_content_length
 
 # TODO: replace with a template, implement a base layout
 #       Implement custom http status code templates with black background
+
 @app.route('/', methods=['GET'])
 def homepage():
+    return '''
+    USAGE:
+    POST to / with the field `file`
+
+    Example:
+    curl -F "file=@somefile" https://example.com/
+
+    HTML Form available at /upload for browser use
+
+    '''
+
+@app.route('/upload', methods=['GET'])
+def upload_page():
     return '''
     <!doctype html>
     <title>Upload new File</title>
     <h1>Upload new File</h1>
-    <form method=post enctype=multipart/form-data>
+    <form method=post enctype=multipart/form-data action='/'>
       <input type=file name=file>
       <input type=submit value=Upload>
     </form>
@@ -44,21 +57,23 @@ def receive_file():
         flash('Please choose a file')
         return redirect(request.url)
 
-    filename = urlsafe_b64encode((getrandbits(config.path_length * 8)) \
-                        .to_bytes(config.path_length, 'little')).decode('utf-8') \
-                      + secure_filename(f.filename)
+    rand_name = urlsafe_b64encode((getrandbits(config.path_length * 8)) \
+                        .to_bytes(config.path_length, 'little')).decode('utf-8')
 
-    # TODO: Implement directory creation based on encoded file name
+    path = os.path.join(rand_name[:2],rand_name[2:4])
+    filepath = os.path.join(path, rand_name + secure_filename(f.filename))
 
     try:
-        f.save(os.path.join(config.base_dir, filename))
+        os.makedirs(name=os.path.join(config.base_dir,path), exist_ok=True)
+        f.save(os.path.join(config.base_dir,filepath))
     except Exception as e:
         print("ERROR: unable to save file: {}".format(e,))
         return "Internal Server Error", 500
+    r = Response()
+    r.headers['Location'] = url_for('send_file', path=filepath)
+    return r, 303
 
-    return redirect(url_for('send_file', path=filename))
-
-@app.route('/<path>', methods=['GET'])
+@app.route('/<path:path>', methods=['GET'])
 def send_file(path):
     '''
     Reads file from disk and sends it to the user
