@@ -1,13 +1,13 @@
 #!/bin/env python3
 
-import os, builtins, time
+import os, time
 
-from random import getrandbits, choice
+from random import getrandbits
 from base64 import urlsafe_b64encode
 from flask import Flask, \
-		render_template, url_for, flash, \
-		request, redirect, Response, abort, \
-		get_flashed_messages, make_response, send_from_directory
+		send_from_directory, url_for, flash, \
+		request, redirect, Response, \
+		render_template_string
 from werkzeug.utils import secure_filename
 
 import config
@@ -16,34 +16,34 @@ app = Flask(__name__)
 app.secret_key = config.secret_key
 app.config['MAX_CONTENT_LENGTH'] = config.max_content_length
 
-
-# TODO: replace with a template, implement a base layout
-#       Implement custom http status code templates with black background
-
 @app.route('/', methods=['GET'])
 def homepage():
-    return '''
+    return render_template_string('''
+    A simple ephemeral filebin
+    The current file TTL is: {{ ttl / 3600}} hours
+
     USAGE:
+
     POST to / with the field `file`
 
-    Example:
+    EXAMPLE:
+
     curl -F "file=@somefile" https://example.com/
 
     HTML Form available at /upload for browser use
 
-    '''
+    ''', ttl=config.ttl)
 
 @app.route('/upload', methods=['GET'])
 def upload_page():
-    return '''
+    return render_template_string('''
     <!doctype html>
     <title>Upload new File</title>
     <h1>Upload new File</h1>
-    <form method=post enctype=multipart/form-data action='/'>
-      <input type=file name=file>
-      <input type=submit value=Upload>
+     <form method=post enctype=multipart/form-data action='/'>
+      <input type=file name=file><input type=submit value=Upload>
     </form>
-    '''
+    ''')
 
 @app.route('/', methods=['POST'])
 def receive_file():
@@ -60,16 +60,16 @@ def receive_file():
     rand_name = urlsafe_b64encode((getrandbits(config.path_length * 8)) \
                         .to_bytes(config.path_length, 'little')).decode('utf-8')
 
-    path = os.path.join(rand_name[:2],rand_name[2:4])
+    path = os.path.join(rand_name[:2], rand_name[2:4])
     filepath = os.path.join(path, rand_name + secure_filename(f.filename))
 
     try:
-        os.makedirs(name=os.path.join(config.base_dir,path), exist_ok=True)
-        f.save(os.path.join(config.base_dir,filepath))
+        os.makedirs(name=os.path.join(config.base_dir, path), exist_ok=True)
+        f.save(os.path.join(config.base_dir, filepath))
     except Exception as e:
         print("ERROR: unable to save file: {}".format(e,))
         return "Internal Server Error", 500
-    r = Response()
+    r = Response(config.app_url + url_for('send_file', path=filepath))
     r.headers['Location'] = url_for('send_file', path=filepath)
     return r, 303
 
@@ -83,19 +83,26 @@ def send_file(path):
     '''
     try:
         os_path = os.path.join(config.base_dir, path)
-        path_mtime = int(os.stat(os_path).st_mtime)
-        if int(time.time()) - path_mtime > config.ttl:
-
+        path_mtime = os.stat(os_path).st_mtime
+        if time.time() - path_mtime > config.ttl:
             os.remove(os_path)
-            raise
+            return "File not found", 404
         return send_from_directory(config.base_dir, path)
     except Exception as e:
         print("ERROR: ", e)
         return "File not found", 404
 
-# TODO: implement function to be called periodically to purge all expired files
-#       use
+@app.route('/purge', methods=['GET'])
+def file_purge():
+    prune_count = 0
+    for root, dirs, files in os.walk(config.base_dir):
+        for f in files:
+            path = os.path.join(root, f)
+            if time.time() - os.stat(path).st_mtime > config.ttl:
+                os.remove(path)
+                prune_count += 1
+    return "Pruned {} files".format(prune_count)
 
 if __name__ == '__main__':
-	app.debug = True
-	app.run()
+    app.debug = True
+    app.run()
