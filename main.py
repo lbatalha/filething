@@ -20,7 +20,7 @@ app.config['MAX_CONTENT_LENGTH'] = config.max_content_length
 def homepage():
     return render_template_string('''
     A simple ephemeral filebin
-    The current file TTL is: {{ ttl / 3600}} hours
+    The current file TTL is: {{ c.ttl / 3600}} hours
 
     USAGE:
 
@@ -28,11 +28,11 @@ def homepage():
 
     EXAMPLE:
 
-    curl -F "file=@somefile" https://example.com/
+    curl -F "file=@somefile"{{ c.app_url }}
 
     HTML Form available at /upload for browser use
 
-    ''', ttl=config.ttl)
+    ''', c=config)
 
 @app.route('/upload', methods=['GET'])
 def upload_page():
@@ -73,7 +73,7 @@ def receive_file():
     r.headers['Location'] = url_for('send_file', path=filepath)
     return r, 303
 
-@app.route('/<path:path>', methods=['GET'])
+@app.route('/f/<path:path>', methods=['GET'])
 def send_file(path):
     '''
     Reads file from disk and sends it to the user
@@ -104,5 +104,5 @@ def file_purge():
     return "Pruned {} files".format(prune_count)
 
 if __name__ == '__main__':
-    app.debug = True
+    app.debug = config.debug
     app.run()
