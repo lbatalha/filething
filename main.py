@@ -28,7 +28,7 @@ def homepage():
 
     EXAMPLE:
 
-    curl -F "file=@somefile"{{ c.app_url }}
+    curl -H 'token: SOMETOKEN' -F "file=@somefile"{{ c.app_url }}
 
     HTML Form available at /upload for browser use
 
