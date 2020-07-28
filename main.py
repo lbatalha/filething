@@ -57,6 +57,9 @@ def receive_file():
         flash('Please choose a file')
         return redirect(request.url)
 
+    if not request.headers['token'] or request.headers['token'] not in config.tokens:
+        return "Unauthorized", 401
+
     rand_name = urlsafe_b64encode((getrandbits(config.path_length * 8)) \
                         .to_bytes(config.path_length, 'little')).decode('utf-8')
 
@@ -95,6 +98,8 @@ def send_file(path):
 
 @app.route('/purge', methods=['GET'])
 def file_purge():
+    if not request.headers['token'] or request.headers['token'] not in config.tokens:
+        return "Unauthorized", 401
     prune_count = 0
     for root, dirs, files in os.walk(config.base_dir):
         for f in files:
