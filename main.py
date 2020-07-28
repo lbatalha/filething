@@ -71,7 +71,8 @@ def receive_file():
         return "Internal Server Error", 500
     r = Response(config.app_url + url_for('send_file', path=filepath))
     r.headers['Location'] = url_for('send_file', path=filepath)
-    return r, 303
+    return r, 200
+    # Wanted to use 303, but ShareX does not handle this correctly
 
 @app.route('/f/<path:path>', methods=['GET'])
 def send_file(path):
