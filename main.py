@@ -98,7 +98,7 @@ def send_file(path):
 
 @app.route('/purge', methods=['GET'])
 def file_purge():
-    if not request.headers['token'] or request.headers['token'] not in config.tokens:
+    if 'token' not in  request.headers or request.headers['token'] not in config.tokens:
         return "Unauthorized", 401
     prune_count = 0
     for root, dirs, files in os.walk(config.base_dir):
