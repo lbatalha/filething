@@ -57,7 +57,7 @@ def receive_file():
         flash('Please choose a file')
         return redirect(request.url)
 
-    if not request.headers['token'] or request.headers['token'] not in config.tokens:
+    if 'token' not in  request.headers or request.headers['token'] not in config.tokens:
         return "Unauthorized", 401
 
     rand_name = urlsafe_b64encode((getrandbits(config.path_length * 8)) \
