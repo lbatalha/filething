@@ -6,7 +6,7 @@ debug = True #flask debug mode
 
 max_content_length = 100 * 1024 * 1024 #Max content size in Bytes
 
-secret_key = "os.urandom(16)"
+secret_key = "os.urandom(16)" # Replace this with your secret string
 
 base_dir = "/home/lbatalha/tmp" # base directory where all files will be stored
 
